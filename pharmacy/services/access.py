@@ -58,6 +58,7 @@ DASHBOARD_TASKS: tuple[DashboardTask, ...] = (
     DashboardTask("inventory_alerts", "Stock alerts", P.INVENTORY_ALERTS, "Low-stock and near-expiry alerts"),
     DashboardTask("reorder", "Recommended: Reorder", P.PURCHASE_VIEW, "Reorder suggestions with their calculation"),
     DashboardTask("purchase_orders", "Purchase Inventory", P.PURCHASE_DECIDE, "Approve, modify or reject purchase orders"),
+    DashboardTask("suppliers", "Suppliers", P.PURCHASE_VIEW, "Supplier contacts and price lists"),
     DashboardTask("orders", "See orders", P.SALES_RECORD, "Dispensed prescriptions waiting for payment"),
     DashboardTask("sales", "Record Sales", P.SALES_RECORD, "Record payments and over-the-counter sales"),
     DashboardTask("receipts", "Issue Receipts", P.SALES_RECORD, "Find and reprint receipts"),

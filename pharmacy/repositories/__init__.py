@@ -25,6 +25,7 @@ from .domain import (
     PurchaseOrderRepository,
     RefillRepository,
     SaleRepository,
+    SupplierRepository,
     UserRepository,
 )
 from .stores import MemoryStore, SqliteDatabase, SqliteStore, Store, TransactionManager
@@ -40,6 +41,7 @@ _TABLES = {
     "interaction_rules": InteractionRuleRepository,
     "alerts": AlertRepository,
     "purchase_orders": PurchaseOrderRepository,
+    "suppliers": SupplierRepository,
     "refills": RefillRepository,
     "notification_preferences": NotificationPreferenceRepository,
     "notifications": NotificationRepository,
@@ -60,6 +62,7 @@ class Repositories:
     interaction_rules: InteractionRuleRepository
     alerts: AlertRepository
     purchase_orders: PurchaseOrderRepository
+    suppliers: SupplierRepository
     refills: RefillRepository
     notification_preferences: NotificationPreferenceRepository
     notifications: NotificationRepository

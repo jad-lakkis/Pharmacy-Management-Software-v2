@@ -25,6 +25,7 @@ from ..domain.models import (
     RefillRequest,
     Sale,
     StockMovement,
+    Supplier,
     User,
 )
 from .base import AppendOnlyRepository, Repository
@@ -147,6 +148,15 @@ class PurchaseOrderRepository(Repository[PurchaseOrder]):
     def with_status(self, *statuses: PurchaseOrderStatus) -> list[PurchaseOrder]:
         wanted = set(statuses)
         return self.filter(lambda po: po.status in wanted)
+
+
+class SupplierRepository(Repository[Supplier]):
+    def __init__(self, store: Store):
+        super().__init__(store, Supplier)
+
+    def by_name(self, name: str) -> Optional[Supplier]:
+        wanted = name.strip().lower()
+        return self.first(lambda s: s.name.lower() == wanted)
 
 
 class RefillRepository(Repository[RefillRequest]):

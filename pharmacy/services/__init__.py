@@ -16,6 +16,7 @@ from .purchasing import PurchasingService
 from .refills import RefillService
 from .reports import ReportService
 from .sales import SalesService
+from .suppliers import SupplierService
 
 
 class PharmacyApp:
@@ -37,6 +38,7 @@ class PharmacyApp:
         self.alerts = ClinicalAlertService(ctx)
         self.prescriptions = PrescriptionService(ctx, self.alerts, self.inventory)
         self.purchasing = PurchasingService(ctx, self.inventory)
+        self.suppliers = SupplierService(ctx)
         self.notifications = NotificationService(ctx)
         self.refills = RefillService(ctx, self.prescriptions, self.notifications)
         self.sales = SalesService(ctx, self.prescriptions, self.inventory)

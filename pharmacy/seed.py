@@ -56,6 +56,14 @@ PRODUCTS = [
     ("metformin", "Metformin", ["metformin"], "500 mg", "tablet", 20, 7, True, 80, 40, 5, 6),
 ]
 
+SUPPLIERS = [
+    # name, contact person, phone, email, address, {product key: unit price in cents}
+    ("MedSupply SARL", "Nadine Fares", "+961 1 555 010", "orders@medsupply.example.com", "Sin el Fil, Beirut",
+     {"lisinopril": 19, "atorvastatin": 24, "amoxicillin": 11, "metformin": 6, "paracetamol": 2}),
+    ("Levant Pharma Distribution", "Karl Mansour", "+961 4 710 220", "sales@levantpharma.example.com", "Jounieh",
+     {"lisinopril": 21, "atorvastatin": 22, "warfarin": 9, "spironolactone": 20, "simvastatin": 14, "clarithromycin": 48}),
+]
+
 INTERACTIONS = [
     ("warfarin", "aspirin", AlertSeverity.HIGH, "increased bleeding risk"),
     ("lisinopril", "spironolactone", AlertSeverity.MODERATE, "risk of high potassium (hyperkalaemia)"),
@@ -111,6 +119,12 @@ def _seed(app: PharmacyApp, clock: FixedClock, real_now: datetime) -> None:
             reference_source=f"Demo interaction table (seed data, not clinical advice): {a} + {b}",
         ))
     app.audit.record(owner, "INTERACTION_RULES_LOADED", "InteractionRule", None, {"count": len(INTERACTIONS)})
+
+    # --- suppliers and their price lists (cents per unit) ---------------------
+    for sname, contact, phone, email, address, prices in SUPPLIERS:
+        supplier = app.suppliers.create_supplier(owner, sname, contact, phone, email, address)
+        for key, cents in prices.items():
+            app.suppliers.set_price(owner, supplier.id, products[key].id, cents)
 
     # --- stock received 40 days ago ---------------------------------------
     d = clock.today()

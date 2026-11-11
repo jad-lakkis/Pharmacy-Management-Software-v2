@@ -273,11 +273,24 @@ class Api:
         r("GET", "/api/reorder-suggestions", lambda q: a.purchasing.suggestions(q.user, q.q("all") in ("1", "true")))
         r("GET", "/api/purchase-orders", lambda q: a.purchasing.list_purchase_orders(q.user, q.q("status")))
         r("POST", "/api/purchase-orders", lambda q: a.purchasing.create_purchase_order(
-            q.user, q.b("product_ids"), q.b("supplier") or "Default supplier"))
+            q.user, q.b("product_ids"), q.b("supplier") or "Default supplier", q.b("supplier_id")))
         r("POST", "/api/purchase-orders/{id}/approve", lambda q: a.purchasing.approve(
             q.user, q.params["id"], q.b("quantities"), q.b("reason")))
         r("POST", "/api/purchase-orders/{id}/reject", lambda q: a.purchasing.reject(q.user, q.params["id"], q.b("reason")))
         r("POST", "/api/purchase-orders/{id}/received", lambda q: a.purchasing.mark_received(q.user, q.params["id"]))
+
+        # Suppliers: contacts and price lists
+        r("GET", "/api/suppliers", lambda q: a.suppliers.list_suppliers(q.user, q.q("all") in ("1", "true")))
+        r("POST", "/api/suppliers", lambda q: a.suppliers.create_supplier(
+            q.user, q.b("name"), q.b("contact_name"), q.b("phone"), q.b("email"), q.b("address")))
+        r("GET", "/api/suppliers/{id}", lambda q: a.suppliers.get_supplier(q.user, q.params["id"]))
+        r("PATCH", "/api/suppliers/{id}", lambda q: a.suppliers.update_supplier(q.user, q.params["id"], **q.body))
+        r("POST", "/api/suppliers/{id}/deactivate", lambda q: a.suppliers.deactivate(q.user, q.params["id"]))
+        r("POST", "/api/suppliers/{id}/reactivate", lambda q: a.suppliers.reactivate(q.user, q.params["id"]))
+        r("POST", "/api/suppliers/{id}/prices", lambda q: a.suppliers.set_price(
+            q.user, q.params["id"], q.b("product_id"), q.b("unit_cost_cents")))
+        r("DELETE", "/api/suppliers/{id}/prices/{product_id}", lambda q: a.suppliers.remove_price(
+            q.user, q.params["id"], q.params["product_id"]))
 
         # Patient self-service (US7.1, US7.2)
         r("GET", "/api/me/refillable", lambda q: a.refills.refillable_prescriptions(q.user))

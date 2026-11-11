@@ -8,6 +8,7 @@ from ..domain.enums import MovementReason, Permission, PurchaseDecisionType, Pur
 from ..domain.models import PurchaseDecision, PurchaseOrder, PurchaseOrderLine, User
 from ..errors import InvalidTransitionError, ValidationError
 from .context import Service, newest_first
+from .suppliers import SupplierService
 from .validation import optional_text, require_int, require_text
 
 P = Permission
@@ -86,9 +87,21 @@ class PurchasingService(Service):
 
     # ---- purchase orders (US6.2) ----------------------------------------
     def create_purchase_order(self, actor: User, product_ids: Optional[list[str]] = None,
-                              supplier: str = "Default supplier") -> PurchaseOrder:
-        """Draft a PO from current suggestions. It always needs a decision."""
+                              supplier: str = "Default supplier",
+                              supplier_id: Optional[str] = None) -> PurchaseOrder:
+        """Draft a PO from current suggestions. It always needs a decision.
+
+        With ``supplier_id`` the order is for a listed supplier: its name is
+        used and each line takes that supplier's unit cost when the supplier
+        has a price for the product (otherwise the product's default cost).
+        """
         self.access.require(actor, P.PURCHASE_VIEW)
+        listed = None
+        if supplier_id:
+            listed = self.repos.suppliers.get(supplier_id)
+            if not listed.active:
+                raise ValidationError(f"supplier {listed.name} is deactivated")
+            supplier = listed.name
         supplier = require_text(supplier, "supplier", 80)
         already_pending = {
             line.product_id
@@ -100,17 +113,27 @@ class PurchasingService(Service):
         for row in rows:
             if not row["triggered"] or row["product_id"] in already_pending:
                 continue
+            unit_cost = row["unit_cost_cents"]
+            basis = {k: v for k, v in row.items() if k not in ("product_id", "product")}
+            if listed is not None:
+                price = SupplierService.price_for(listed, row["product_id"])
+                if price is not None:
+                    unit_cost = price
+                    basis["unit_cost_source"] = f"{listed.name} price list"
+                else:
+                    basis["unit_cost_source"] = f"product default cost ({listed.name} has no price for it)"
             lines.append(PurchaseOrderLine(
                 product_id=row["product_id"], product_name=row["product"],
                 suggested_quantity=row["suggested_quantity"], quantity=row["suggested_quantity"],
-                unit_cost_cents=row["unit_cost_cents"],
-                basis={k: v for k, v in row.items() if k not in ("product_id", "product")},
+                unit_cost_cents=unit_cost,
+                basis=basis,
             ))
         if not lines:
             raise ValidationError("nothing to order: no selected product needs reordering or all are already pending")
         po = PurchaseOrder(
             id=f"PO-{self.repos.counters.next('purchase_order'):04d}", supplier=supplier, lines=lines,
             status=PurchaseOrderStatus.PENDING_APPROVAL, created_by=actor.id, created_at=self.clock.now(),
+            supplier_id=listed.id if listed else None,
         )
         self.repos.purchase_orders.add(po)
         self.audit.record(actor, "PURCHASE_ORDER_DRAFTED", "PurchaseOrder", po.id,

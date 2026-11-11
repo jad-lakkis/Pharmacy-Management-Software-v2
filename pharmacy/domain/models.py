@@ -256,6 +256,30 @@ class ClinicalAlert:
 
 
 @dataclass
+class SupplierPrice:
+    """What one supplier charges per unit of one product."""
+
+    product_id: str
+    product_name: str
+    unit_cost_cents: int
+    updated_at: datetime
+
+
+@dataclass
+class Supplier:
+    id: str
+    name: str
+    created_at: datetime
+    updated_at: datetime
+    contact_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    active: bool = True
+    prices: list[SupplierPrice] = field(default_factory=list)
+
+
+@dataclass
 class PurchaseOrderLine:
     product_id: str
     product_name: str
@@ -285,6 +309,7 @@ class PurchaseOrder:
     decision: Optional[PurchaseDecision] = None
     received_at: Optional[datetime] = None
     received_by: Optional[str] = None
+    supplier_id: Optional[str] = None  # set when the order was drafted for a listed supplier
 
     @property
     def total_cost_cents(self) -> int:

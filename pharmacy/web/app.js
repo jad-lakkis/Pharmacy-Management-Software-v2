@@ -583,6 +583,12 @@ VIEWS.reorder = async (el, refresh) => {
   const panel = () => el.closest(".main");
   const showAll = h("input", { type: "checkbox", checked: store.get("reorderAll") === "1" });
   const list = h("div");
+  // Optional: draft the order for a listed supplier so its price list is used.
+  let suppliers = [];
+  try { suppliers = await GET("/api/suppliers"); } catch { /* supplier list is optional */ }
+  const supplierSel = suppliers.length
+    ? select("supplier_id", [["", "Default supplier (product default costs)"], ...suppliers.map((s) => [s.id, s.name])])
+    : null;
   async function load() {
     store.set("reorderAll", showAll.checked ? "1" : "0");
     const rows = await GET(`/api/reorder-suggestions${showAll.checked ? "?all=1" : ""}`);
@@ -603,9 +609,12 @@ VIEWS.reorder = async (el, refresh) => {
           h("p", { class: "small mono" }, r.explanation));
       }) : h("p", { class: "muted" }, "Nothing needs reordering."),
       rows.some((r) => r.triggered) ? h("div", { class: "row" },
+        supplierSel ? h("label", { class: "row" }, "Supplier", supplierSel) : null,
         h("button", { class: "primary", onclick: () => {
           const ids = [...checks].filter(([, cb]) => cb.checked).map(([id]) => id);
-          quiet(act(panel(), () => POST("/api/purchase-orders", { product_ids: ids }), (po) => `Drafted ${po.id}; it now needs approval in Purchase Inventory`).then(load));
+          const body = { product_ids: ids };
+          if (supplierSel && supplierSel.value) body.supplier_id = supplierSel.value;
+          quiet(act(panel(), () => POST("/api/purchase-orders", body), (po) => `Drafted ${po.id}; it now needs approval in Purchase Inventory`).then(load));
         } }, "Create purchase order for selected")) : null,
       h("p", { class: "muted small" }, rows[0] ? rows[0].formula : ""));
   }
@@ -633,7 +642,8 @@ VIEWS.purchase_orders = async (el, refresh) => {
           if (!pending) return l.quantity;
           const inp = h("input", { type: "number", min: 0, value: l.quantity, class: "narrow" });
           qtyInputs.set(l.product_id, inp); return inp; } },
-        { title: "Unit cost", num: true, render: (l) => money(l.unit_cost_cents) },
+        { title: "Unit cost", num: true, render: (l) => [money(l.unit_cost_cents),
+          l.basis.unit_cost_source ? h("div", { class: "muted small" }, l.basis.unit_cost_source) : null] },
         { title: "Basis", render: (l) => h("span", { class: "small mono" }, l.basis.explanation) },
       ], po.lines),
       h("p", {}, `Total: ${money(po.total_cost_cents)}`),
@@ -645,6 +655,72 @@ VIEWS.purchase_orders = async (el, refresh) => {
         } }, "Approve"),
         h("button", { class: "danger", onclick: () => quiet(act(panel(), () => POST(`/api/purchase-orders/${po.id}/reject`, { reason: reason.value }), "Rejected").then(refresh)) }, "Reject")) : null,
       po.status === "APPROVED" ? h("button", { onclick: () => quiet(act(panel(), () => POST(`/api/purchase-orders/${po.id}/received`), "Marked as received").then(refresh)) }, "Mark received") : null));
+  }
+};
+
+// ------------------------------------------------- suppliers (contacts and price lists)
+function supplierForm(s = {}) {
+  return h("form", { class: "form" },
+    field("Supplier name", input("name", { value: s.name, required: true })),
+    field("Contact person", input("contact_name", { value: s.contact_name })),
+    field("Phone", input("phone", { value: s.phone })),
+    field("Email", input("email", { type: "email", value: s.email })),
+    field("Address", input("address", { value: s.address })),
+    h("button", { class: "primary", type: "submit" }, s.id ? "Save changes" : "Add supplier"));
+}
+
+VIEWS.suppliers = async (el, refresh) => {
+  const panel = () => el.closest(".main");
+  const canEdit = has("purchasing.decide");
+  const suppliers = await GET("/api/suppliers?all=1");
+  let products = [];
+  try { products = await GET("/api/products"); } catch { /* only needed to add prices */ }
+  const defaultCost = new Map(products.map((p) => [p.id, p.unit_cost_cents]));
+
+  add(el, h("h2", {}, "Suppliers"),
+    h("p", { class: "muted small" }, "Contact details and the price each supplier charges per unit. A purchase order drafted for a supplier uses its prices; products it does not list keep their default cost."));
+  if (!suppliers.length) add(el, h("p", { class: "muted" }, "No suppliers yet."));
+
+  for (const s of suppliers) {
+    const priceSel = select("product_id", products.map((p) => [p.id, `${p.name} ${p.strength}`]));
+    const priceForm = h("form", { class: "row" }, priceSel,
+      input("price", { type: "number", min: "0.01", step: "0.01", required: true, placeholder: "Price per unit ($)", class: "narrow" }),
+      h("button", { type: "submit" }, "Set price"));
+    priceForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const { product_id, price } = formData(priceForm);
+      await quiet(act(panel(), () => POST(`/api/suppliers/${s.id}/prices`, { product_id, unit_cost_cents: centsFromInput(price) }), "Price saved").then(refresh));
+    });
+    const editForm = supplierForm(s);
+    editForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await quiet(act(panel(), () => PATCH(`/api/suppliers/${s.id}`, formData(editForm)), "Supplier updated").then(refresh));
+    });
+    add(el, h("div", { class: "card" },
+      h("div", { class: "row" }, h("strong", {}, s.name), s.active ? null : badge("Deactivated", "HIGH"), h("span", { class: "muted small mono" }, s.id)),
+      kv({ Contact: s.contact_name, Phone: s.phone, Email: s.email, Address: s.address }),
+      h("h3", {}, "Price list"),
+      table([
+        { title: "Product", render: (p) => p.product_name },
+        { title: "Supplier price", num: true, render: (p) => money(p.unit_cost_cents) },
+        { title: "Default cost", num: true, render: (p) => money(defaultCost.get(p.product_id)) },
+        { title: "Updated", render: (p) => dt(p.updated_at) },
+        canEdit ? { title: "", render: (p) => h("button", { class: "danger", onclick: () => quiet(act(panel(), () => DEL(`/api/suppliers/${s.id}/prices/${p.product_id}`), "Price removed").then(refresh)) }, "Remove") } : null,
+      ].filter(Boolean), s.prices, "No prices listed yet."),
+      canEdit && products.length ? priceForm : null,
+      canEdit ? h("details", {}, h("summary", {}, "Edit details"), editForm) : null,
+      canEdit ? h("div", { class: "row" }, s.active
+        ? h("button", { class: "danger", onclick: () => { if (confirm(`Deactivate ${s.name}? Existing orders keep their supplier name.`)) quiet(act(panel(), () => POST(`/api/suppliers/${s.id}/deactivate`), "Deactivated").then(refresh)); } }, "Deactivate")
+        : h("button", { onclick: () => quiet(act(panel(), () => POST(`/api/suppliers/${s.id}/reactivate`), "Reactivated").then(refresh)) }, "Reactivate")) : null));
+  }
+
+  if (canEdit) {
+    const addForm = supplierForm();
+    addForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await quiet(act(panel(), () => POST("/api/suppliers", formData(addForm)), (s) => `Added ${s.name}`).then(refresh));
+    });
+    add(el, h("h3", {}, "Add supplier"), addForm);
   }
 };
 
