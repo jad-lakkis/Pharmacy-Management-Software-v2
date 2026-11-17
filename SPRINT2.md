@@ -116,8 +116,7 @@ Sprint 2 velocity = **8** (planned 8, done 8, nothing carried over).
 
 Sprint 1 built the whole backlog from scratch, while Sprint 2 was a small,
 focused increment chosen from the gaps found in review, so the Sprint 2 figure
-should not be read as the team's capacity. For planning Sprint 3 the team uses
-the average (about 35 points) as an upper guide and re-checks it at planning.
+should not be read as the team's capacity.
 
 ## Sprint review
 
@@ -144,7 +143,7 @@ Demo accounts are listed in [README.md](README.md).
 
 ## Product backlog (not in Sprint 2)
 
-Gaps found during the review. Estimates are proposals, to be confirmed at Sprint 3 planning.
+Gaps found during the review. Estimates are proposals.
 
 | Item | Proposed pts | Note |
 |---|---|---|
