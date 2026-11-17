@@ -1,5 +1,7 @@
 """Prescription workflow (US3.1) with mandatory verification (US3.2)."""
 
+from __future__ import annotations
+
 from datetime import timedelta
 from typing import Any, Callable, Optional
 

@@ -5,6 +5,8 @@ until it is passed back through ``update``/``save``. This keeps the
 in-memory backend behaving like a real database in tests.
 """
 
+from __future__ import annotations
+
 from typing import Callable, Generic, Iterable, Optional, TypeVar
 
 from ..errors import ConflictError, NotFoundError
