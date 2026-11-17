@@ -496,6 +496,54 @@ VIEWS.refill_review = async (el, refresh) => {
       : h("p", { class: "muted" }, "No refill requests waiting."));
 };
 
+// ------------------------------------------------- products (add a new medicine to the catalogue)
+VIEWS.products = async (el, refresh) => {
+  const panel = () => el.closest(".main");
+  const products = await GET("/api/products");
+  const form = h("form", { class: "form" },
+    field("Name", input("name", { required: true, placeholder: "e.g. Metformin" })),
+    field("Barcode (GTIN, 8/12/13/14 digits)", input("gtin", { required: true, class: "mono", inputmode: "numeric" })),
+    field("Active ingredients (comma separated)", input("ingredients", { required: true, placeholder: "e.g. metformin" })),
+    field("Strength", input("strength", { required: true, placeholder: "e.g. 500 mg" })),
+    field("Dosage form", input("dosage_form", { required: true, placeholder: "e.g. tablet" })),
+    field("Selling price per unit ($)", input("unit_price", { type: "number", min: "0", step: "0.01", required: true })),
+    field("Cost per unit ($)", input("unit_cost", { type: "number", min: "0", step: "0.01", required: true })),
+    field("Reorder point", input("reorder_point", { type: "number", min: 0, value: 0 })),
+    field("Safety stock", input("safety_stock", { type: "number", min: 0, value: 0 })),
+    field("Supplier lead time (days)", input("lead_time_days", { type: "number", min: 0, max: 365, value: 7 })),
+    field("Max units per day (optional)", input("max_daily_quantity", { type: "number", min: 1 })),
+    h("label", { class: "wide" }, h("input", { type: "checkbox", name: "requires_prescription", checked: true }), " Requires a prescription"),
+    h("button", { class: "primary", type: "submit" }, "Add product"));
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = formData(form);
+    const body = {
+      name: f.name, gtin: f.gtin, strength: f.strength, dosage_form: f.dosage_form,
+      ingredients: (f.ingredients || "").split(",").map((s) => s.trim()).filter(Boolean),
+      unit_price_cents: centsFromInput(f.unit_price), unit_cost_cents: centsFromInput(f.unit_cost),
+      requires_prescription: f.requires_prescription,
+      reorder_point: intOrNull(f.reorder_point) ?? 0, safety_stock: intOrNull(f.safety_stock) ?? 0,
+      lead_time_days: intOrNull(f.lead_time_days) ?? 7, max_daily_quantity: intOrNull(f.max_daily_quantity),
+    };
+    const main = panel();
+    // refresh() redraws the panel (and its message area), so show the hint after it.
+    await quiet(act(main, () => POST("/api/products", body))
+      .then((p) => refresh().then(() => flash(main, `Added ${p.name}. Receive its first stock under "Check by Bar Code".`, "ok"))));
+  });
+
+  add(el, h("h2", {}, "Products"),
+    h("p", { class: "muted small" }, "Add a medicine that is not in the catalogue yet. After that, staff can receive stock for it, and it appears in inventory, reorder suggestions, prescriptions and sales."),
+    table([
+      { title: "Product", render: (p) => `${p.name} ${p.strength} ${p.dosage_form}` },
+      { title: "Barcode", render: (p) => h("span", { class: "mono small" }, p.gtin) },
+      { title: "Price", num: true, render: (p) => money(p.unit_price_cents) },
+      { title: "Cost", num: true, render: (p) => money(p.unit_cost_cents) },
+      { title: "Rx", render: (p) => p.requires_prescription ? "Yes" : "No (over the counter)" },
+      { title: "Reorder point", num: true, render: (p) => p.reorder_point },
+    ], products, "No products yet."),
+    h("h3", {}, "Add product"), form);
+};
+
 // ------------------------------------------------- receiving (US5.1)
 VIEWS.receive = async (el, refresh) => {
   const panel = () => el.closest(".main");

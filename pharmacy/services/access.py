@@ -53,6 +53,7 @@ DASHBOARD_TASKS: tuple[DashboardTask, ...] = (
     DashboardTask("verification", "ALERTS", P.RX_VERIFY, "Verify prescriptions and review clinical alerts"),
     DashboardTask("alert_form", "Decision-making form", P.ALERT_RESOLVE, "Record how a clinical alert was resolved"),
     DashboardTask("refill_review", "Refill requests", P.REFILL_REVIEW, "Review patient refill requests"),
+    DashboardTask("products", "Products", P.PRODUCT_MANAGE, "Add new medicines and see the product catalogue"),
     DashboardTask("receive", "Check by Bar Code", P.INVENTORY_RECEIVE, "Scan lot and expiry when receiving stock"),
     DashboardTask("inventory", "Inventory", P.INVENTORY_VIEW, "Stock on hand by lot"),
     DashboardTask("inventory_alerts", "Stock alerts", P.INVENTORY_ALERTS, "Low-stock and near-expiry alerts"),
